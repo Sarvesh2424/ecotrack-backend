@@ -32,10 +32,80 @@ app.post("/footprint", async (req, res) => {
       return res.status(400).json({ message: "Invalid input" });
     }
     const id = uuidv4();
-    const footPrintObj = new FootPrint({ id, date, footPrint });
+    const newDate = new Date(date);
+    const footPrintObj = new FootPrint({ id, date: newDate, footPrint });
     await footPrintObj.save();
     res.status(200).json(footPrintObj);
   } catch (err) {
-    res.status(400).json({ message: "No expenses found" });
+    res.status(400).json({ message: "Cannot post to database" });
+  }
+});
+
+app.get("/footprint", async (req, res) => {
+  try {
+    const footPrints = await FootPrint.find();
+    res.status(200).json(footPrints);
+  } catch (err) {
+    res.status(400).json({ message: "No footprints found" });
+  }
+});
+
+app.get("/footprint/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const footPrint = await FootPrint.findOne({ id });
+    if (!footPrint) {
+      return res.status(400).json({ message: "No footprints found" });
+    }
+    res.status(200).json(footPrint);
+  } catch (err) {
+    res.status(400).json({ message: "No footprints found" });
+  }
+});
+
+app.get("/footprint/date/:date", async (req, res) => {
+  try {
+    const { date } = req.params;
+    const footPrints = await FootPrint.find();
+    const footPrint = footPrints.filter(
+      (footPrint) =>
+        footPrint.date.toDateString() === new Date(date).toDateString()
+    );
+    if (!footPrint) {
+      return res.status(400).json({ message: "No footprints found" });
+    }
+    res.status(200).json(footPrint);
+  } catch (err) {
+    res.status(400).json({ message: "No footprints found" });
+  }
+});
+
+app.delete("/footprint/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const footPrint = await FootPrint.findOneAndDelete({ id });
+    if (!footPrint) {
+      return res.status(400).json({ message: "No footprints found" });
+    }
+    res.status(200).json(footPrint);
+  } catch (err) {
+    res.status(400).json({ message: "No footprints found" });
+  }
+});
+
+app.put("/footprint/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const footPrintObj = await FootPrint.findOneAndUpdate(
+      { id: id },
+      req.body,
+      { new: true }
+    );
+    if (!footPrintObj) {
+      return res.status(400).json({ message: "No footprints found" });
+    }
+    res.status(200).json(footPrintObj);
+  } catch (err) {
+    res.status(400).json({ message: "No footprints found" });
   }
 });

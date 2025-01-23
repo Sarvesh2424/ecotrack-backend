@@ -1,6 +1,9 @@
 {
   "dependencies": {
+    "date": "^2.0.6",
+    "date-fns": "^4.1.0",
     "express": "^4.21.2",
+    "isodate": "^0.1.4",
     "mongoose": "^8.9.5",
     "nodemon": "^3.1.9",
     "uuid": "^11.0.5"
