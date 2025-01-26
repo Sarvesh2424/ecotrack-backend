@@ -7,14 +7,14 @@ const authMiddleware = require("./auth");
 const cors = require("cors");
 
 const app = express();
-app.use(express.json());
+app.use(cors());
 
 mongoose.connect("mongodb://127.0.0.1:27017/ecotrack").then(() => {
   console.log("Connected to MongoDB");
 });
 
 app.listen(3000, () => {
-  console.log("Server is running on http://127.0.0.1:3000");
+  console.log("Server is running on http://127.0.0.1:3000 ");
 });
 
 const userSchema = new mongoose.Schema({
@@ -45,13 +45,18 @@ const Goal = mongoose.model("Goal", goalScheme);
 
 app.post("/footprint", async (req, res) => {
   try {
-    const { date, footPrint } = req.body;
-    if (!date || !footPrint) {
+    const { userId, date, footPrint } = req.body;
+    if (!date || !footPrint || !userId) {
       return res.status(400).json({ message: "Invalid input" });
     }
     const id = uuidv4();
     const newDate = new Date(date);
-    const footPrintObj = new FootPrint({ id, date: newDate, footPrint });
+    const footPrintObj = new FootPrint({
+      id,
+      userId,
+      date: newDate,
+      footPrint,
+    });
     await footPrintObj.save();
     res.status(200).json(footPrintObj);
   } catch (err) {
@@ -59,7 +64,7 @@ app.post("/footprint", async (req, res) => {
   }
 });
 
-app.get("/footprint", authMiddleware, async (req, res) => {
+app.get("/footprint", async (req, res) => {
   try {
     const footPrints = await FootPrint.find();
     res.status(200).json(footPrints);
@@ -71,7 +76,7 @@ app.get("/footprint", authMiddleware, async (req, res) => {
 app.get("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const footPrint = await FootPrint.findOne({ id });
+    const footPrint = await FootPrint.findOne({ userId: id });
     if (!footPrint) {
       return res.status(400).json({ message: "No footprints found" });
     }
@@ -101,7 +106,7 @@ app.get("/footprint/date/:date", async (req, res) => {
 app.delete("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const footPrint = await FootPrint.findOneAndDelete({ id });
+    const footPrint = await FootPrint.findOneAndDelete({ userId: id });
     if (!footPrint) {
       return res.status(400).json({ message: "No footprints found" });
     }
@@ -115,7 +120,7 @@ app.put("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const footPrintObj = await FootPrint.findOneAndUpdate(
-      { id: id },
+      { userId: id },
       req.body,
       { new: true }
     );
