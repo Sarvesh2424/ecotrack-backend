@@ -1,13 +1,14 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
+const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const authMiddleware = require("./auth");
-const cors = require("cors");
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 mongoose
   .connect(
@@ -53,6 +54,10 @@ app.post("/footprint", async (req, res) => {
     if (!date || !footPrint || !userId) {
       return res.status(400).json({ message: "Invalid input" });
     }
+    const user = await User.find({ id: userId });
+    if (user.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
     const id = uuidv4();
     const newDate = new Date(date);
     const footPrintObj = new FootPrint({
@@ -80,7 +85,7 @@ app.get("/footprint", async (req, res) => {
 app.get("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const footPrint = await FootPrint.findOne({ userId: id });
+    const footPrint = await FootPrint.find({ userId: id });
     if (!footPrint) {
       return res.status(400).json({ message: "No footprints found" });
     }
@@ -185,7 +190,7 @@ app.post("/goal", async (req, res) => {
       return res.status(400).json({ message: "Invalid input" });
     }
     const user = await User.find({ id: userId });
-    if (user.length() === 0) {
+    if (user.length === 0) {
       return res.status(400).json({ message: "User not found" });
     }
     const id = uuidv4();
