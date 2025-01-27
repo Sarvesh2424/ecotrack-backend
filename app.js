@@ -10,13 +10,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose
-  .connect(
-    "mongodb+srv://10650sarvesh:choc2424@cluster0.wktvu.mongodb.net/ecotrack"
-  )
-  .then(() => {
-    console.log("Connected to MongoDB");
-  });
+mongoose.connect("mongodb://127.0.0.1:27017/ecotrack").then(() => {
+  console.log("Connected to MongoDB");
+});
 
 app.listen(3000, () => {
   console.log("Server is running on http://127.0.0.1:3000 ");
@@ -40,13 +36,22 @@ const footPrintSchema = new mongoose.Schema({
 
 const FootPrint = mongoose.model("FootPrint", footPrintSchema);
 
-const goalScheme = new mongoose.Schema({
+const goalSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   userId: { type: String, required: true, unique: true },
   goal: { type: Number, required: true },
 });
 
-const Goal = mongoose.model("Goal", goalScheme);
+const Goal = mongoose.model("Goal", goalSchema);
+
+const reductionSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true },
+  footprintId: { type: String, required: true },
+  reduction: { type: Number, required: true },
+});
+
+const Reduction = mongoose.model("Reduction", reductionSchema);
 
 app.post("/footprint", async (req, res) => {
   try {
@@ -86,7 +91,7 @@ app.get("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const footPrint = await FootPrint.find({ userId: id });
-    if (!footPrint) {
+    if (footPrint.length === 0) {
       return res.status(400).json({ message: "No footprints found" });
     }
     res.status(200).json(footPrint);
@@ -115,7 +120,7 @@ app.get("/footprint/date/:date", async (req, res) => {
 app.delete("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const footPrint = await FootPrint.findOneAndDelete({ userId: id });
+    const footPrint = await FootPrint.findOneAndDelete({ id });
     if (!footPrint) {
       return res.status(400).json({ message: "No footprints found" });
     }
@@ -206,11 +211,57 @@ app.get("/goal/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const goal = await Goal.find({ userId: id });
-    if (goal.length() === 0) {
+    if (goal.length === 0) {
       return res.status(400).json({ message: "Goal not found" });
     }
     res.status(200).json(goal);
   } catch (error) {
     res.status(400).json({ message: "Cannot get from database" });
+  }
+});
+
+app.post("/reduction", async (req, res) => {
+  try {
+    const { userId, reduction, footprintId } = req.body;
+    if (!userId || !reduction || !footprintId) {
+      return res.status(400).json({ message: "Invalid input" });
+    }
+    const user = await User.find({ id: userId });
+    if (user.length === 0) {
+      return res.status(400).json({ message: "User not found" });
+    }
+    const id = uuidv4();
+    const newReduction = new Reduction({ id, userId, footprintId, reduction });
+    await newReduction.save();
+    res.status(200).json(newReduction);
+  } catch (err) {
+    res.status(400).json({ message: "Cannot post to database" });
+  }
+});
+
+app.get("/reduction/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const reduction = await Reduction.find({ footprintId: id });
+    if (reduction.length === 0) {
+      return res.status(400).json({ message: "Reduction not found" });
+    }
+    res.status(200).json(reduction);
+  } catch (error) {
+    res.status(400).json({ message: "Cannot get from database" });
+  }
+});
+
+app.delete("/reduction/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const reduction = await Reduction.findOneAndDelete({ footprintId: id });
+    if (reduction.length === 0) {
+      return res.status(400).json({ message: "Reduction not found" });
+    }
+    res.status(200).json({ message: "Reduction deleted" });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({ message: "Cannot delete from database" });
   }
 });
