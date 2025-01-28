@@ -10,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb://127.0.0.1:27017/ecotrack").then(() => {
+mongoose.connect("mongodb+srv://10650sarvesh:choc2424@cluster0.wktvu.mongodb.net/ecotrack").then(() => {
   console.log("Connected to MongoDB");
 });
 
@@ -55,15 +55,14 @@ const Reduction = mongoose.model("Reduction", reductionSchema);
 
 app.post("/footprint", async (req, res) => {
   try {
-    const { userId, date, footPrint } = req.body;
+    const { id, userId, date, footPrint } = req.body;
     if (!date || !footPrint || !userId) {
       return res.status(400).json({ message: "Invalid input" });
     }
     const user = await User.find({ id: userId });
-    if (user.length === 0) {
+    if (user.length === null) {
       return res.status(404).json({ message: "User not found" });
     }
-    const id = uuidv4();
     const newDate = new Date(date);
     const footPrintObj = new FootPrint({
       id,
@@ -91,7 +90,7 @@ app.get("/footprint/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const footPrint = await FootPrint.find({ userId: id });
-    if (footPrint.length === 0) {
+    if (footPrint.length === null) {
       return res.status(400).json({ message: "No footprints found" });
     }
     res.status(200).json(footPrint);
@@ -181,7 +180,13 @@ app.post("/login", async (req, res) => {
     if (!isValidPassword) {
       return res.status(400).json({ message: "Invalid password" });
     }
-    const token = jwt.sign({ id: user.id }, "hahaha", { expiresIn: "72h" });
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email },
+      "hahaha",
+      {
+        expiresIn: "72h",
+      }
+    );
     res.status(200).json({ token });
   } catch (err) {
     res.status(400).json({ message: "Cannot post to database" });
@@ -195,7 +200,7 @@ app.post("/goal", async (req, res) => {
       return res.status(400).json({ message: "Invalid input" });
     }
     const user = await User.find({ id: userId });
-    if (user.length === 0) {
+    if (user.length === null) {
       return res.status(400).json({ message: "User not found" });
     }
     const id = uuidv4();
@@ -211,7 +216,7 @@ app.get("/goal/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const goal = await Goal.find({ userId: id });
-    if (goal.length === 0) {
+    if (goal.length === null) {
       return res.status(400).json({ message: "Goal not found" });
     }
     res.status(200).json(goal);
@@ -227,7 +232,7 @@ app.post("/reduction", async (req, res) => {
       return res.status(400).json({ message: "Invalid input" });
     }
     const user = await User.find({ id: userId });
-    if (user.length === 0) {
+    if (user.length === null) {
       return res.status(400).json({ message: "User not found" });
     }
     const id = uuidv4();
@@ -243,7 +248,20 @@ app.get("/reduction/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const reduction = await Reduction.find({ footprintId: id });
-    if (reduction.length === 0) {
+    if (reduction.length === null) {
+      return res.status(400).json({ message: "Reduction not found" });
+    }
+    res.status(200).json(reduction);
+  } catch (error) {
+    res.status(400).json({ message: "Cannot get from database" });
+  }
+});
+
+app.get("/reduction/user/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const reduction = await Reduction.find({ userId: id });
+    if (reduction.length === null) {
       return res.status(400).json({ message: "Reduction not found" });
     }
     res.status(200).json(reduction);
@@ -256,12 +274,51 @@ app.delete("/reduction/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const reduction = await Reduction.findOneAndDelete({ footprintId: id });
-    if (reduction.length === 0) {
+    if (reduction.length === null) {
       return res.status(400).json({ message: "Reduction not found" });
     }
     res.status(200).json({ message: "Reduction deleted" });
   } catch (error) {
     console.log(error);
     res.status(400).json({ message: "Cannot delete from database" });
+  }
+});
+
+app.get("/leaderboard", async (req, res) => {
+  try {
+    const leaderboard = await Reduction.aggregate([
+      {
+        $group: {
+          _id: "$userId",
+          totalReduction: { $sum: "$reduction" }
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "id",
+          as: "userInfo"
+        }
+      },
+      {
+        $unwind: "$userInfo"
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: "$_id",
+          totalReduction: 1,
+          name: "$userInfo.name",
+          email: "$userInfo.email"
+        }
+      },
+      {
+        $sort: { totalReduction: 1 }
+      }
+    ]);
+    res.status(200).json(leaderboard);
+  } catch (err) {
+    res.status(400).json({ message: "Cannot get from database" });
   }
 });
