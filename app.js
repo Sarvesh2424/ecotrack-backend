@@ -10,9 +10,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb+srv://10650sarvesh:choc2424@cluster0.wktvu.mongodb.net/ecotrack").then(() => {
-  console.log("Connected to MongoDB");
-});
+mongoose
+  .connect(
+    "mongodb+srv://10650sarvesh:choc2424@cluster0.wktvu.mongodb.net/ecotrack"
+  )
+  .then(() => {
+    console.log("Connected to MongoDB");
+  });
 
 app.listen(3000, () => {
   console.log("Server is running on http://127.0.0.1:3000 ");
@@ -52,6 +56,16 @@ const reductionSchema = new mongoose.Schema({
 });
 
 const Reduction = mongoose.model("Reduction", reductionSchema);
+
+const postSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true },
+  name: { type: String, required: true },
+  post: { type: String, required: true },
+  date: { type: Date, required: true },
+});
+
+const Post = mongoose.model("Post", postSchema);
 
 app.post("/footprint", async (req, res) => {
   try {
@@ -290,19 +304,19 @@ app.get("/leaderboard", async (req, res) => {
       {
         $group: {
           _id: "$userId",
-          totalReduction: { $sum: "$reduction" }
-        }
+          totalReduction: { $sum: "$reduction" },
+        },
       },
       {
         $lookup: {
           from: "users",
           localField: "_id",
           foreignField: "id",
-          as: "userInfo"
-        }
+          as: "userInfo",
+        },
       },
       {
-        $unwind: "$userInfo"
+        $unwind: "$userInfo",
       },
       {
         $project: {
@@ -310,14 +324,44 @@ app.get("/leaderboard", async (req, res) => {
           userId: "$_id",
           totalReduction: 1,
           name: "$userInfo.name",
-          email: "$userInfo.email"
-        }
+          email: "$userInfo.email",
+        },
       },
       {
-        $sort: { totalReduction: 1 }
-      }
+        $sort: { totalReduction: 1 },
+      },
     ]);
     res.status(200).json(leaderboard);
+  } catch (err) {
+    res.status(400).json({ message: "Cannot get from database" });
+  }
+});
+
+app.post("/community", async (req, res) => {
+  try {
+    const { userId, post, date } = req.body;
+    const user = await User.findOne({ id: userId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const communityPost = new Post({
+      id: uuidv4(),
+      userId,
+      name: user.name,
+      post,
+      date,
+    });
+    await communityPost.save();
+    res.status(200).json(communityPost);
+  } catch (err) {
+    res.status(400).json({ message: "Cannot create post" });
+  }
+});
+
+app.get("/community", async (req, res) => {
+  try {
+    const communityPosts = await Post.find().sort({ date: -1 }).limit(15);
+    res.status(200).json(communityPosts);
   } catch (err) {
     res.status(400).json({ message: "Cannot get from database" });
   }
